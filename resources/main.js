@@ -2,7 +2,7 @@ Neutralino.init();
 
 let selectedFiles = [];
 let outputFolder = "";
-let barra = document.getElementById("barra"); // certifique-se que existe um <progress id="barra">
+let barra = document.getElementById("barra");
 
 async function chooseDocs() {
     try {
@@ -33,50 +33,57 @@ async function chooseOutput() {
     }
 }
 
+function rodarProcesso(cmd) {
+    return new Promise(async (resolve, reject) => {
+        try {
+            let proc = await Neutralino.os.spawnProcess(cmd);
+            let onProcessEvent = (evt) => {
+                if (evt.detail.id === proc.id) {
+                    if (evt.detail.action === 'exit') {
+                        Neutralino.events.off('spawnedProcess', onProcessEvent);
+                        resolve(evt.detail);
+                    }
+                }
+            };
+            Neutralino.events.on('spawnedProcess', onProcessEvent);
+        } catch (error) {
+            reject(error);
+        }
+    });
+}
+
 async function startValidation() {
     if (selectedFiles.length === 0 || !outputFolder) {
         document.getElementById("status").innerText = "Selecione arquivos e pasta de saída primeiro.";
         return;
     }
+
     document.getElementById("iniciar").disabled = true;
     document.getElementById("abrirEntrada").disabled = true;
     document.getElementById("abrirSaida").disabled = true;
 
-    let total = selectedFiles.length;
-    let processed = 0;
+    barra.classList.remove("indeterminate");
+    barra.value = 0;
+    barra.max = 100;
+    document.getElementById("status").innerText = `Iniciando validação...`;
 
-    barra.removeAttribute("value");
-    barra.classList.add("indeterminate");
-    document.getElementById("status").innerText = "Preparando validação...";
+    try {
+        const payload = { files: selectedFiles, outputFolder: outputFolder };
+        await Neutralino.filesystem.writeFile("./.lista.json", JSON.stringify(payload));
 
-    for (const file of selectedFiles) {
-        const cmd = `"${NL_PATH}/node/node.exe" "${NL_PATH}/validar.js" "${file}" "${outputFolder}"`;
-        try {
-            let result = await Neutralino.os.execCommand(cmd);
+        const cmd = `"${NL_PATH}/node/node.exe" "${NL_PATH}/validar.js"`;
+        await rodarProcesso(cmd);
 
-             barra.classList.remove("indeterminate");
-            barra.value = 0;
-            barra.max = 100;
-
-            processed++;
-            let percent = Math.round((processed / total) * 100);
-            barra.value = percent;
-
-            if (result.stdErr) {
-                document.getElementById("status").innerText = `Erro ao processar ${file}`;
-            } else {
-                document.getElementById("status").innerText = `Processados ${processed}/${total}`;
-            }
-        } catch (err) {
-            await Neutralino.os.showMessageBox("Erro", err.message);
-        }
+        document.getElementById("status").innerText = "✔ Validação concluída!";
+        barra.value = 100;
+    } catch (err) {
+        console.error("Erro:", err);
+        document.getElementById("status").innerText = "Erro durante a validação.";
+    } finally {
+        document.getElementById("iniciar").disabled = false;
+        document.getElementById("abrirEntrada").disabled = false;
+        document.getElementById("abrirSaida").disabled = false;
     }
-
-    document.getElementById("status").innerText = "✔ Validação concluída!";
-    document.getElementById("iniciar").disabled = false;
-    document.getElementById("abrirEntrada").disabled = false;
-    document.getElementById("abrirSaida").disabled = false;
-
 }
 
 document.getElementById("abrirEntrada").addEventListener("click", chooseDocs);

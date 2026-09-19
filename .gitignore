@@ -146,3 +146,6 @@ node_modules/
 
 .playwright/
 
+node/
+.tmp/
+
