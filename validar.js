@@ -113,9 +113,10 @@ async function validarArquivo(browser, arquivo, pastaSaida) {
 async function main() {
     let arquivos = [];
     let pastaSaida = "./saida";
+    const configPath = path.join(process.cwd(), ".lista.json");
+    const progressoPath = path.join(process.cwd(), ".progresso.txt");
 
     try {
-        const configPath = path.join(process.cwd(), ".lista.json");
         if (fs.existsSync(configPath)) {
             const data = JSON.parse(fs.readFileSync(configPath, "utf8"));
             arquivos = data.files || [];
@@ -131,17 +132,32 @@ async function main() {
         return;
     }
 
+    // Inicializa o progresso a 0
+    try {
+        fs.writeFileSync(progressoPath, `0/${arquivos.length}`, "utf8");
+    } catch (e) { }
+
     // Abre o navegador APENAS UMA VEZ
     const browser = await abrirBrowser();
 
     const limiteConcorrencia = 5; // Mantém exatamente 5 abas ativas em simultâneo
     let index = 0;
+    let processados = 0;
+    const total = arquivos.length;
 
     async function worker() {
         while (index < arquivos.length) {
             const currentIndex = index++;
             const arquivo = arquivos[currentIndex];
+
             await validarArquivo(browser, arquivo, pastaSaida);
+
+            processados++;
+
+            // Grava o progresso num ficheiro de texto separado para o frontend ler suavemente
+            try {
+                fs.writeFileSync(progressoPath, `${processados}/${total}`, "utf8");
+            } catch (e) { }
         }
     }
 

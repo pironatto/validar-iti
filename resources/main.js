@@ -64,19 +64,36 @@ async function startValidation() {
 
     barra.classList.remove("indeterminate");
     barra.value = 0;
-    barra.max = 100;
-    document.getElementById("status").innerText = `Iniciando validação...`;
+    barra.max = selectedFiles.length;
+    document.getElementById("status").innerText = `Iniciando validação (0/${selectedFiles.length})...`;
+
+    // Intervalo para verificar o progresso em tempo real
+    let timerProgresso = setInterval(async () => {
+        try {
+            let progressoTxt = await Neutralino.filesystem.readFile("./.progresso.txt");
+            if (progressoTxt) {
+                let partes = progressoTxt.trim().split("/");
+                let atual = parseInt(partes[0]);
+                let total = parseInt(partes[1]);
+
+                barra.value = atual;
+                document.getElementById("status").innerText = `Validando arquivos... (${atual}/${total})`;
+            }
+        } catch (e) { }
+    }, 400); // Atualiza a cada 400ms
 
     try {
-        const payload = { files: selectedFiles, outputFolder: outputFolder };
+        const payload = { files: selectedFiles, outputFolder: outputFolder, processados: 0, total: selectedFiles.length };
         await Neutralino.filesystem.writeFile("./.lista.json", JSON.stringify(payload));
 
         const cmd = `"${NL_PATH}/node/node.exe" "${NL_PATH}/validar.js"`;
         await rodarProcesso(cmd);
 
-        document.getElementById("status").innerText = "✔ Validação concluída!";
-        barra.value = 100;
+        clearInterval(timerProgresso);
+        barra.value = selectedFiles.length;
+        document.getElementById("status").innerText = "✔ Validação concluída com sucesso!";
     } catch (err) {
+        clearInterval(timerProgresso);
         console.error("Erro:", err);
         document.getElementById("status").innerText = "Erro durante a validação.";
     } finally {
@@ -89,3 +106,24 @@ async function startValidation() {
 document.getElementById("abrirEntrada").addEventListener("click", chooseDocs);
 document.getElementById("abrirSaida").addEventListener("click", chooseOutput);
 document.getElementById("iniciar").addEventListener("click", startValidation);
+
+async function mostrarAjuda() {
+    try {
+        await Neutralino.os.showMessageBox(
+            "Ajuda - Validador",
+            "1. Selecione os documentos (PDF, P7S, XML).\n" +
+            "2. Escolha a pasta de saída.\n" +
+            "3. Clique em Iniciar Validação para processar."
+        );
+    } catch (err) {
+        // Fallback caso o Neutralino dê qualquer outro problema: usa o alert nativo
+        alert(
+            "Ajuda - Validador\n\n" +
+            "1. Selecione os documentos (PDF, P7S, XML).\n" +
+            "2. Escolha a pasta de saída.\n" +
+            "3. Clique em Iniciar Validação para processar."
+        );
+    }
+}
+
+document.getElementById("btnAjuda").addEventListener("click", mostrarAjuda);
