@@ -110,10 +110,17 @@ document.getElementById("iniciar").addEventListener("click", startValidation);
 async function mostrarAjuda() {
     try {
         await Neutralino.os.showMessageBox(
-            "Ajuda - Validador",
-            "1. Selecione os documentos (PDF, P7S, XML).\n" +
-            "2. Escolha a pasta de saída.\n" +
-            "3. Clique em Iniciar Validação para processar."
+            "Instruções",
+            "1. Selecione a pasta de Entrada.\n" +
+            "2. Selecione os documentos (PDF, P7S, XML).\n" +
+            "3. Escolha a pasta de saída.\n" +
+            "4. Clique em Iniciar Validação para processar.\n" +
+            "\n" +
+            "Os documentos terão os nomes alterados para: \n" +
+                    "_ERRO.pdf : Documentos com assinatura indeterminada.\n"+
+                    "_FALHA.txt : Documentos que não tem assinatura.\n" +
+                    "_relatorio.pdf : Documentos validados"
+
         );
     } catch (err) {
         // Fallback caso o Neutralino dê qualquer outro problema: usa o alert nativo
